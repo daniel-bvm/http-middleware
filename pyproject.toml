@@ -1,5 +1,5 @@
 [project]
-name = "http-middleware"
+name = "eai-http-middleware"
 description = "A agent http middleware"
 authors = [{ name = "daniel", email = "daniel@bvm.network" }]
 readme = "README.md"
