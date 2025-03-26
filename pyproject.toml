@@ -1,5 +1,5 @@
 [project]
-name = "eai-http-middleware"
+name = "eai_http_middleware"
 description = "A agent http middleware"
 authors = [{ name = "daniel", email = "daniel@bvm.network" }]
 readme = "README.md"
@@ -38,3 +38,6 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.package-data]
 "*" = ["py.typed"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/eai_http_middleware"]
