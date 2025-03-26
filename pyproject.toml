@@ -1,6 +1,6 @@
 [project]
-name = "eternalai-http-middleware"
-description = "A agent middleware by EternalAI"
+name = "http-middleware"
+description = "A agent http middleware"
 authors = [{ name = "daniel", email = "daniel@bvm.network" }]
 readme = "README.md"
 classifiers = [
