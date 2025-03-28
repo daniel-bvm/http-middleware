@@ -181,9 +181,42 @@ def _join_translated_parts(inp, STAR):
 ETERNALAI_MCP_PROXY_URL = os.getenv("ETERNALAI_MCP_PROXY_URL", None)
 DEBUG_MODE = os.getenv("DEBUG_MODE", "false").lower() in "true1yes"
 PROXY_SCOPE: list[str] = os.getenv("PROXY_SCOPE", "*").split(',')
+USE_V2 = os.getenv("USE_V2", "true").lower() in "true1yes"
 
 def need_redirect(url: str):
     return any(fnmatch(url, e) for e in PROXY_SCOPE)
+
+def construct_v1_payload(method, url, body, headers, params: dict={}) -> dict:
+    return {
+        "method": method, 
+        **unpack_original_url(url, params=params),
+        "body": b64_encode_original_body(body), 
+        "headers": headers
+    }
+
+def construct_v2_payload(method, url, body, headers, params: dict={}) -> dict:
+    is_encodeable_body = True
+
+    try:
+        json.dumps(body)
+    except TypeError:
+        is_encodeable_body = False
+
+    return {
+        'messages': [
+            {
+                'role': 'user',
+                'content': json.dumps(
+                    {
+                        "method": method, 
+                        **unpack_original_url(url, params=params),
+                        "body": body if is_encodeable_body else b64_encode_original_body(body), 
+                        "headers": headers
+                    }
+                )
+            }
+        ]
+    }
 
 def unpack_original_url(url: str, **kwargs):
     url_parts = parse.urlparse(url)
@@ -238,12 +271,11 @@ if ETERNALAI_MCP_PROXY_URL is not None:
         original_http_request = http.client.HTTPConnection.request
         def patch(self, method, url, body=None, headers=None): 
             if need_redirect(url):
-                payload = {
-                    "method": method, 
-                    **unpack_original_url(url),
-                    "body": b64_encode_original_body(body), 
-                    "headers": headers
-                }
+                payload = (
+                    construct_v1_payload(method, url, body, headers) 
+                    if not USE_V2 
+                    else construct_v2_payload(method, url, body, headers)
+                )
 
                 DEBUG_MODE and print("DEBUG-patching", payload, file=sys.stderr)
 
@@ -275,18 +307,22 @@ if ETERNALAI_MCP_PROXY_URL is not None:
                     hooks=None, stream=None, verify=None, cert=None, json=None):
             
             if need_redirect(url):
-                payload = {
-                    "method": method, 
-                    **unpack_original_url(url), 
-                    "body": b64_encode_original_body(extract_body(json=json, data=data)), 
-                    "headers": headers or {}
-                }
-                
+                body = extract_body(json=json, data=data)
+
+                payload = (
+                    construct_v1_payload(method, url, body, headers or {}, params=params or {}) 
+                    if not USE_V2 
+                    else construct_v2_payload(method, url, body, headers or {}, params=params or {})
+                )
+
                 DEBUG_MODE and print('DEBUG-patching', payload, file=sys.stderr)
 
                 res = original_requests_session_request(
-                    self, 'POST',  ETERNALAI_MCP_PROXY_URL,
+                    self, 'POST', ETERNALAI_MCP_PROXY_URL,
                     json=payload,
+                    headers={
+                        'Content-Type': 'application/json'
+                    }
                 )
                 
                 DEBUG_MODE and print("DEBUG-patching", res.status_code, file=sys.stderr)
@@ -314,27 +350,25 @@ if ETERNALAI_MCP_PROXY_URL is not None:
             auth, follow_redirects, timeout, extensions): \
             
             if need_redirect(url):
-                payload = {
-                    "method": method, 
-                    **unpack_original_url(url), 
-                    "body": b64_encode_original_body(extract_body(json=json, data=data)), 
-                    "headers": headers or {}
-                }
+                body = extract_body(json=json, data=data)
+                payload = (
+                    construct_v1_payload(method, url, body, headers or {}, params=params or {}) 
+                    if not USE_V2 
+                    else construct_v2_payload(method, url, body, headers or {}, params=params or {})
+                )
 
                 DEBUG_MODE and print("DEBUG-patching", payload, file=sys.stderr)
                 
                 res =  original_httpx_client_send(
                     self, 'POST', ETERNALAI_MCP_PROXY_URL, 
-                    json={
-                        "method": method, 
-                        **unpack_original_url(url), 
-                        "body": b64_encode_original_body(extract_body(json=json, data=data)), 
-                        "headers": headers or {}
+                    json=payload,
+                    headers={
+                        'Content-Type': 'application/json'
                     }
                 )
-                
+
                 DEBUG_MODE and print("DEBUG-patching", res.status_code, file=sys.stderr)
-            
+
             else:
                 res =  original_httpx_client_send(self, method, url, \
                     content, data, files, json, params, headers, cookies, \
@@ -355,18 +389,21 @@ if ETERNALAI_MCP_PROXY_URL is not None:
         ):
             
             if need_redirect(url):
-                payload = {
-                    "method": method, 
-                    **unpack_original_url(url), 
-                    "body": b64_encode_original_body(extract_body(json=json, data=data)), 
-                    "headers": headers or {}
-                }
+                body = extract_body(json=json, data=data)
+                payload = (
+                    construct_v1_payload(method, url, body, headers or {}, params=params or {}) 
+                    if not USE_V2 
+                    else construct_v2_payload(method, url, body, headers or {}, params=params or {})
+                )
 
                 DEBUG_MODE and print("DEBUG-patching", payload, file=sys.stderr)
                 
                 res = await original_httpx_async_client_send(
                     self, 'POST', ETERNALAI_MCP_PROXY_URL, 
-                    json=payload
+                    json=payload,
+                    headers={
+                        'Content-Type': 'application/json'
+                    }
                 )
                 
                 DEBUG_MODE and print("DEBUG-patching", res.status_code, file=sys.stderr)
@@ -389,19 +426,22 @@ if ETERNALAI_MCP_PROXY_URL is not None:
         def patch(method, url, version, connector, loop, **kwargs):
             
             if need_redirect(url):
-                
-                payload = {
-                    "method": method, 
-                    **unpack_original_url(url), 
-                    "body": b64_encode_original_body(extract_body(**kwargs)), 
-                    "headers": kwargs.get('headers', {})
-                }
+                body = extract_body(**kwargs)
+
+                payload = (
+                    construct_v1_payload(method, url, body, kwargs.get('headers', {}), params=kwargs.get('params', {})) 
+                    if not USE_V2 
+                    else construct_v2_payload(method, url, body, kwargs.get('headers', {}), params=kwargs.get('params', {}))
+                )
 
                 DEBUG_MODE and print("DEBUG-patching", payload, file=sys.stderr)
-                
+
                 res = original_aiohttp_client_request(
                     'POST', ETERNALAI_MCP_PROXY_URL,
-                    json=payload
+                    json=payload,
+                    headers={
+                        'Content-Type': 'application/json'
+                    },
                 )
                 
                 DEBUG_MODE and print("DEBUG-patching", res.status_code, file=sys.stderr)
@@ -451,18 +491,21 @@ if ETERNALAI_MCP_PROXY_URL is not None:
             max_field_size = None,
         ):
             if need_redirect(str_or_url):
-                payload = {
-                    "method": method, 
-                    **unpack_original_url(str_or_url), 
-                    "body": b64_encode_original_body(extract_body(json=json, data=data)), 
-                    "headers": headers or {}
-                }
+                body = extract_body(json=json, data=data)
+                payload = (
+                    construct_v1_payload(method, str_or_url, body, headers, params=params) 
+                    if not USE_V2 
+                    else construct_v2_payload(method, str_or_url, body, headers, params=params)
+                )
 
                 DEBUG_MODE and print("DEBUG-patching", payload, file=sys.stderr)
                 
                 res = await original_aiohttp_client_session_request(
                     self, 'POST', ETERNALAI_MCP_PROXY_URL,
                     json=payload,
+                    headers={
+                        'Content-Type': 'application/json'
+                    },
                 )
                 
                 DEBUG_MODE and print("DEBUG-patching", res.status_code, file=sys.stderr)
