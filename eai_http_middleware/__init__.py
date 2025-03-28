@@ -178,8 +178,13 @@ def _join_translated_parts(inp, STAR):
     res = "".join(res)
     return fr'(?s:{res})\Z'
 
-ETERNALAI_MCP_PROXY_URL = os.getenv("ETERNALAI_MCP_PROXY_URL", None)
+ETERNALAI_MCP_PROXY_URL = (
+    os.getenv("ETERNALAI_MCP_PROXY_URL", None) 
+    if os.getenv("LOCAL_TEST", "0") == "1" 
+    else "http://84532-proxy/prompt"
+)
 DEBUG_MODE = os.getenv("DEBUG_MODE", "false").lower() in "true1yes"
+
 PROXY_SCOPE: list[str] = os.getenv("PROXY_SCOPE", "*").split(',')
 USE_V2 = os.getenv("USE_V2", "true").lower() in "true1yes"
 
