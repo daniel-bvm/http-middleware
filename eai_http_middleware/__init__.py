@@ -195,25 +195,34 @@ def construct_v1_payload(method, url, body, headers, params: dict={}) -> dict:
     }
 
 def construct_v2_payload(method, url, body, headers, params: dict={}) -> dict:
-    is_encodeable_body = True
+    is_json_encodeable_body = True
 
     try:
+        if isinstance(body, bytes):
+            body = body.decode()
+
+        if isinstance(body, str):
+            body = json.loads(body)
+
         json.dumps(body)
-    except TypeError:
-        is_encodeable_body = False
+    except (TypeError, json.JSONDecodeError):
+        is_json_encodeable_body = False
+        DEBUG_MODE and print("DEBUG-construct_v2_payload", body, file=sys.stderr)
+
+    payload_content = {
+        "method": method, 
+        **unpack_original_url(url, params=params),
+        "headers": headers
+    }
+    
+    if method.upper() == 'POST' or method.upper() == 'PUT':
+        payload_content['body'] = body if is_json_encodeable_body else '{}'
 
     return {
         'messages': [
             {
                 'role': 'user',
-                'content': json.dumps(
-                    {
-                        "method": method, 
-                        **unpack_original_url(url, params=params),
-                        "body": body if is_encodeable_body else b64_encode_original_body(body), 
-                        "headers": headers
-                    }
-                )
+                'content': json.dumps(payload_content)
             }
         ]
     }
@@ -344,10 +353,11 @@ if ETERNALAI_MCP_PROXY_URL is not None:
     try:
         import httpx
         original_httpx_client_send = httpx._client.Client.request
+        USE_CLIENT_DEFAULT = httpx._client.UseClientDefault()
         
         def patch(self, method, url, \
-            content, data, files, json, params, headers, cookies, \
-            auth, follow_redirects, timeout, extensions): \
+            content=None, data=None, files=None, json=None, params=None, headers=None, cookies=None, \
+            auth=USE_CLIENT_DEFAULT, follow_redirects=USE_CLIENT_DEFAULT, timeout=USE_CLIENT_DEFAULT, extensions=None): \
             
             if need_redirect(url):
                 body = extract_body(json=json, data=data)
