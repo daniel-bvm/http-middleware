@@ -339,9 +339,9 @@ if ETERNALAI_MCP_PROXY_URL is not None:
             else:
                 res = original_requests_session_request(
                     self, method, url, \
-                    params=None, data=None, headers=None, cookies=None, files=None, \
-                    auth=None, timeout=None, allow_redirects=True, proxies=None, \
-                    hooks=None, stream=None, verify=None, cert=None, json=None
+                    params=params, data=data, headers=headers, cookies=cookies, files=files, \
+                    auth=auth, timeout=timeout, allow_redirects=allow_redirects, proxies=proxies, \
+                    hooks=hooks, stream=stream, verify=verify, cert=cert, json=json
                 )
 
             return res
@@ -381,8 +381,8 @@ if ETERNALAI_MCP_PROXY_URL is not None:
 
             else:
                 res =  original_httpx_client_send(self, method, url, \
-                    content, data, files, json, params, headers, cookies, \
-                    auth, follow_redirects, timeout, extensions
+                    content=content, data=data, files=files, json=json, params=params, headers=headers, cookies=cookies, \
+                    auth=auth, follow_redirects=follow_redirects, timeout=timeout, extensions=extensions
                 )
             
             return res
@@ -420,9 +420,9 @@ if ETERNALAI_MCP_PROXY_URL is not None:
             
             else:
                 res = await original_httpx_async_client_send(
-                    self, method, url, content, data,
-                    files, json, params, headers, cookies, auth, 
-                    follow_redirects, timeout, extensions,
+                    self, method, url, content=content, data=data,
+                    files=files, json=json, params=params, headers=headers, cookies=cookies, auth=auth, 
+                    follow_redirects=follow_redirects, timeout=timeout, extensions=extensions
                 )
             
             return res 
@@ -522,12 +522,34 @@ if ETERNALAI_MCP_PROXY_URL is not None:
             
             else:
                 res = await original_aiohttp_client_session_request(
-                    self, method, str_or_url, params, data, json,
-                    cookies, headers, skip_auto_headers, auth, allow_redirects,
-                    max_redirects, compress, chunked, expect100, raise_for_status,
-                    read_until_eof, proxy, proxy_auth, timeout, verify_ssl, fingerprint, 
-                    ssl_context, ssl, server_hostname, proxy_headers, trace_request_ctx,
-                    read_bufsize, auto_decompress, max_line_size, max_field_size,
+                    self, method, str_or_url, params=params,
+                    data=data,
+                    json=json,
+                    cookies=cookies,
+                    headers=headers,
+                    skip_auto_headers=skip_auto_headers,
+                    auth=auth,
+                    allow_redirects=allow_redirects,
+                    max_redirects=max_redirects,
+                    compress=compress,
+                    chunked=chunked,
+                    expect100=expect100,
+                    raise_for_status=raise_for_status,
+                    read_until_eof=read_until_eof,
+                    proxy=proxy,
+                    proxy_auth=proxy_auth,
+                    timeout=timeout,
+                    verify_ssl=verify_ssl,
+                    fingerprint=fingerprint,
+                    ssl_context=ssl_context,
+                    ssl=ssl,
+                    server_hostname=server_hostname,
+                    proxy_headers=proxy_headers,
+                    trace_request_ctx=trace_request_ctx,
+                    read_bufsize=read_bufsize,
+                    auto_decompress=auto_decompress,
+                    max_line_size=max_line_size,
+                    max_field_size=max_field_size,
                 )
             
             return res
